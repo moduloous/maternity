@@ -15,29 +15,42 @@ class ApplicationProvider extends ChangeNotifier {
 
   // Submit application
   Future<bool> submitApplication({
-    required String jobId,
+    String? jobId, // Made optional since we're using static job data
     required String applicantId,
     required String name,
     required String email,
     required String message,
     String? resumeUrl,
+    String? jobTitle,
+    String? companyName,
+    String? location,
+    String? salary,
   }) async {
     _setLoading(true);
     _clearError();
     
     try {
       final application = await _applicationService.submitApplication(
-        jobId: jobId,
+        jobId: jobId ?? '', // Pass empty string if null
         applicantId: applicantId,
         name: name,
         email: email,
         message: message,
         resumeUrl: resumeUrl,
+        jobTitle: jobTitle,
+        companyName: companyName,
+        location: location,
+        salary: salary,
       );
       
       if (application != null) {
-        _applications.insert(0, application);
-        notifyListeners();
+        // Check if application already exists to prevent duplicates
+        final existingIndex = _applications.indexWhere((app) => app.id == application.id);
+        if (existingIndex == -1) {
+          // Only add if it doesn't already exist
+          _applications.insert(0, application);
+          notifyListeners();
+        }
         return true;
       } else {
         _setError('Failed to submit application');
@@ -81,6 +94,17 @@ class ApplicationProvider extends ChangeNotifier {
     }
   }
 
+  // Load user applications (alias for loadApplicationsByApplicant)
+  Future<void> loadUserApplications({String? userId}) async {
+    if (userId != null) {
+      await loadApplicationsByApplicant(userId);
+    } else {
+      // If no userId provided, we'll load empty list
+      _applications = [];
+      notifyListeners();
+    }
+  }
+
   // Delete application
   Future<bool> deleteApplication(String applicationId) async {
     _setLoading(true);
@@ -112,6 +136,23 @@ class ApplicationProvider extends ChangeNotifier {
     } catch (e) {
       return null;
     }
+  }
+
+  // Clear all applications (useful for ensuring only real submissions are shown)
+  void clearApplications() {
+    _applications.clear();
+    _clearError();
+    notifyListeners();
+  }
+
+  // Remove duplicate applications from the list
+  void removeDuplicates() {
+    final uniqueApplications = <String, ApplicationModel>{};
+    for (final application in _applications) {
+      uniqueApplications[application.id] = application;
+    }
+    _applications = uniqueApplications.values.toList();
+    notifyListeners();
   }
 
   // Helper methods

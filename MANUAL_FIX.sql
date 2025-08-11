@@ -36,3 +36,32 @@ GRANT EXECUTE ON FUNCTION user_exists TO authenticated;
 
 -- 6. Verify the functions were created
 SELECT 'Functions created successfully' as status;
+
+-- Migration script to add missing columns to applications table
+-- Run this in your Supabase SQL Editor
+
+-- Add missing columns to applications table
+ALTER TABLE applications 
+ADD COLUMN IF NOT EXISTS job_title TEXT,
+ADD COLUMN IF NOT EXISTS company_name TEXT,
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Applied',
+ADD COLUMN IF NOT EXISTS location TEXT,
+ADD COLUMN IF NOT EXISTS salary TEXT;
+
+-- Update existing applications to have default values
+UPDATE applications 
+SET 
+    job_title = COALESCE(job_title, 'Unknown Job'),
+    company_name = COALESCE(company_name, 'Unknown Company'),
+    status = COALESCE(status, 'Applied'),
+    location = COALESCE(location, 'Remote'),
+    salary = COALESCE(salary, 'Not specified')
+WHERE job_title IS NULL OR company_name IS NULL OR status IS NULL OR location IS NULL OR salary IS NULL;
+
+-- Make job_id optional since we're using static job data
+ALTER TABLE applications 
+ALTER COLUMN job_id DROP NOT NULL;
+
+-- Remove the foreign key constraint temporarily
+ALTER TABLE applications 
+DROP CONSTRAINT IF EXISTS applications_job_id_fkey;

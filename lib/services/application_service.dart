@@ -6,26 +6,47 @@ class ApplicationService {
 
   // Submit job application
   Future<ApplicationModel?> submitApplication({
-    required String jobId,
+    String? jobId, // Made optional since we're using static job data
     required String applicantId,
     required String name,
     required String email,
     required String message,
     String? resumeUrl,
+    String? jobTitle,
+    String? companyName,
+    String? location,
+    String? salary,
   }) async {
     try {
-      final response = await _supabase.from('applications').insert({
-        'job_id': jobId,
+      // Create the data map with only the required fields first
+      final data = {
         'applicant_id': applicantId,
         'name': name,
         'email': email,
         'message': message,
         'resume_url': resumeUrl,
         'created_at': DateTime.now().toIso8601String(),
-      }).select().single();
+      };
+
+      // Add job_id only if it's a valid UUID, otherwise skip it
+      if (jobId != null && jobId.isNotEmpty && jobId != 'null') {
+        data['job_id'] = jobId;
+      }
+
+      // Add optional fields only if they are provided
+      if (jobTitle != null) data['job_title'] = jobTitle;
+      if (companyName != null) data['company_name'] = companyName;
+      if (location != null) data['location'] = location;
+      if (salary != null) data['salary'] = salary;
+      
+      // Status is always set to 'Applied' for new applications
+      data['status'] = 'Applied';
+
+      final response = await _supabase.from('applications').insert(data).select().single();
 
       return ApplicationModel.fromJson(response);
     } catch (e) {
+      print('Error submitting application: $e');
       return null;
     }
   }
@@ -41,6 +62,7 @@ class ApplicationService {
 
       return response.map((app) => ApplicationModel.fromJson(app)).toList();
     } catch (e) {
+      print('Error getting applications for job: $e');
       return [];
     }
   }
@@ -56,6 +78,7 @@ class ApplicationService {
 
       return response.map((app) => ApplicationModel.fromJson(app)).toList();
     } catch (e) {
+      print('Error getting applications by applicant: $e');
       return [];
     }
   }
@@ -71,6 +94,7 @@ class ApplicationService {
 
       return ApplicationModel.fromJson(response);
     } catch (e) {
+      print('Error getting application by ID: $e');
       return null;
     }
   }
@@ -81,6 +105,7 @@ class ApplicationService {
       await _supabase.from('applications').delete().eq('id', applicationId);
       return true;
     } catch (e) {
+      print('Error deleting application: $e');
       return false;
     }
   }

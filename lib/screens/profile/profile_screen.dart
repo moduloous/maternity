@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../models/user_model.dart';
 import '../../utils/theme.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../widgets/custom_button.dart';
+import '../../services/cv_storage_service.dart';
+import 'edit_profile_screen.dart';
+import '../applications/my_applications_screen.dart';
+import 'cv_display_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,87 +19,39 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _experienceController = TextEditingController();
-  final _companyNameController = TextEditingController();
-  final _skillsController = TextEditingController();
-  bool _isEditing = false;
-  bool _maternityStatus = false;
+  final CVStorageService _cvStorageService = CVStorageService();
+  bool _hasCV = false;
+  bool _isLoadingCV = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-  }
-
-  void _loadUserData() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.currentUser;
-    if (user != null) {
-      _nameController.text = user.name;
-      _experienceController.text = user.experience ?? '';
-      _companyNameController.text = user.companyName ?? '';
-      _skillsController.text = user.skills?.join(', ') ?? '';
-      _maternityStatus = user.maternityStatus ?? false;
-    }
+    _checkCVStatus();
   }
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _experienceController.dispose();
-    _companyNameController.dispose();
-    _skillsController.dispose();
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh CV status when returning to this screen
+    _checkCVStatus();
   }
 
-  Future<void> _saveProfile() async {
-    if (_formKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
-      // Show loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Updating profile...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-
-      // Create updated user model
-      final updatedUser = UserModel(
-        id: authProvider.currentUser!.id,
-        email: authProvider.currentUser!.email,
-        name: _nameController.text.trim(),
-        role: authProvider.currentUser!.role,
-        skills: _skillsController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
-        experience: _experienceController.text.trim(),
-        maternityStatus: _maternityStatus,
-        resumeUrl: authProvider.currentUser!.resumeUrl,
-        companyName: _companyNameController.text.trim(),
-        createdAt: authProvider.currentUser!.createdAt,
-      );
-
-      // Update profile (you'll need to implement this in AuthProvider)
-      // For now, just update the local state
+  Future<void> _checkCVStatus() async {
+    setState(() {
+      _isLoadingCV = true;
+    });
+    
+    try {
+      final hasCV = await _cvStorageService.hasCV();
       setState(() {
-        _isEditing = false;
+        _hasCV = hasCV;
+        _isLoadingCV = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-  }
-
-  Future<void> _signOut() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.signOut();
-    if (mounted) {
-      context.go('/auth/login');
+    } catch (e) {
+      setState(() {
+        _hasCV = false;
+        _isLoadingCV = false;
+      });
     }
   }
 
@@ -114,10 +70,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         return Scaffold(
-          backgroundColor: AppTheme.backgroundColor,
+          backgroundColor: const Color(0xFFFFF8E1), // Light yellow background
           appBar: AppBar(
-            title: const Text('Profile'),
-            backgroundColor: Colors.transparent,
+            backgroundColor: const Color(0xFFFFF8E1),
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -129,42 +84,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               },
             ),
+            title: const Text(
+              'My Profile',
+              style: TextStyle(
+                color: AppTheme.textPrimaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             actions: [
-              if (!_isEditing)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = true;
-                    });
-                  },
-                ),
               IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: _signOut,
+                icon: const Icon(Icons.more_vert),
+                onPressed: () {
+                  // Show menu options
+                  _showMenuOptions(context, authProvider);
+                },
               ),
             ],
           ),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profile Header
-                  _buildProfileHeader(user),
-                  const SizedBox(height: 32),
-                  
-                  // Profile Information
-                  _buildProfileInfo(user),
-                  
-                  if (_isEditing) ...[
-                    const SizedBox(height: 32),
-                    _buildEditActions(),
-                  ],
-                ],
-              ),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Profile Card
+                _buildProfileCard(user),
+                const SizedBox(height: 24),
+                
+                // Action Items
+                _buildActionItem(
+                  context,
+                  icon: Icons.edit,
+                  title: 'Edit Profile',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildActionItem(
+                  context,
+                  icon: Icons.description,
+                  title: 'My Applications',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyApplicationsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildCVSection(context),
+              ],
             ),
           ),
         );
@@ -172,90 +147,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(UserModel user) {
+  Widget _buildProfileCard(UserModel user) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor,
-            AppTheme.primaryColor.withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
           // Profile Avatar
           Container(
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.textPrimaryColor,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
-            child: Icon(
-              user.role == UserRole.jobSeeker ? Icons.person : Icons.business,
-              size: 40,
-              color: AppTheme.primaryColor,
+            child: Center(
+              child: Text(
+                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(height: 16),
           
-          // Profile Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    user.role == UserRole.jobSeeker ? 'Job Seeker' : 'Employer',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+          // User Name
+          Text(
+            user.name,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          
+          // Email
+          Text(
+            user.email,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondaryColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Role Chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.pink[50],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.pink[200]!),
+            ),
+            child: Text(
+              user.role == UserRole.jobSeeker ? 'Job Seeker' : 'Employer',
+              style: TextStyle(
+                color: Colors.pink[700],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -263,176 +228,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileInfo(UserModel user) {
+  Widget _buildActionItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: AppTheme.textPrimaryColor,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimaryColor,
+              ),
+            ),
+            const Spacer(),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textSecondaryColor,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCVSection(BuildContext context) {
+    if (_isLoadingCV) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Profile Information',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+        const Text(
+          'CV/Resume',
+          style: TextStyle(
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimaryColor,
           ),
         ),
-        const SizedBox(height: 20),
-        
-        // Name Field
-        _buildInfoCard(
-          'Name',
-          Icons.person_outline,
-          _isEditing
-              ? CustomTextField(
-                  controller: _nameController,
-                  labelText: 'Full Name',
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    return null;
-                  },
-                )
-              : Text(
-                  user.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.textPrimaryColor,
-                  ),
-                ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Role-specific fields
-        if (user.role == UserRole.jobSeeker) ...[
-          // Experience Field
-          _buildInfoCard(
-            'Experience',
-            Icons.work_outline,
-            _isEditing
-                ? CustomTextField(
-                    controller: _experienceController,
-                    labelText: 'Years of Experience',
-                    maxLines: 3,
-                  )
-                : Text(
-                    (user.experience?.isEmpty ?? true) ? 'Not specified' : user.experience!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textPrimaryColor,
-                    ),
-                  ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Skills Field
-          _buildInfoCard(
-            'Skills',
-            Icons.star_outline,
-            _isEditing
-                ? CustomTextField(
-                    controller: _skillsController,
-                    labelText: 'Skills (comma separated)',
-                    maxLines: 2,
-                  )
-                : (user.skills?.isEmpty ?? true)
-                    ? const Text(
-                        'No skills added',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.textPrimaryColor,
-                        ),
-                      )
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: (user.skills ?? []).map((skill) => Chip(
-                          label: Text(skill),
-                          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                          labelStyle: const TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontSize: 12,
-                          ),
-                        )).toList(),
-                      ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Maternity Status
-          _buildInfoCard(
-            'Maternity Status',
-            Icons.child_care,
-            _isEditing
-                ? SwitchListTile(
-                    title: const Text('Looking for maternity-friendly jobs'),
-                    value: _maternityStatus,
-                    onChanged: (value) {
-                      setState(() {
-                        _maternityStatus = value;
-                      });
-                    },
-                    activeColor: AppTheme.primaryColor,
-                  )
-                : Text(
-                    (user.maternityStatus ?? false)
-                        ? 'Looking for maternity-friendly positions'
-                        : 'Not specifically looking for maternity-friendly positions',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textPrimaryColor,
-                    ),
-                  ),
-          ),
-        ] else ...[
-          // Company Name for Employers
-          _buildInfoCard(
-            'Company',
-            Icons.business_outlined,
-            _isEditing
-                ? CustomTextField(
-                    controller: _companyNameController,
-                    labelText: 'Company Name',
-                  )
-                : Text(
-                    (user.companyName?.isEmpty ?? true) ? 'Not specified' : user.companyName!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textPrimaryColor,
-                    ),
-                  ),
-          ),
-        ],
-        
-        const SizedBox(height: 16),
-        
-        // Member Since
-        _buildInfoCard(
-          'Member Since',
-          Icons.calendar_today_outlined,
-          Text(
-            '${user.createdAt.day}/${user.createdAt.month}/${user.createdAt.year}',
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppTheme.textPrimaryColor,
-            ),
-          ),
-        ),
+        const SizedBox(height: 12),
+        if (_hasCV)
+          _buildCVStatus(context)
+        else
+          _buildUploadCVButton(context),
       ],
     );
   }
 
-  Widget _buildInfoCard(String title, IconData icon, Widget content) {
+  Widget _buildCVStatus(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -441,64 +328,243 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: AppTheme.primaryColor,
-                size: 20,
-              ),
+              const Icon(Icons.check_circle, color: Colors.green),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+              const Text(
+                'CV Uploaded',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimaryColor,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          content,
+          _buildActionItem(
+            context,
+            icon: Icons.visibility,
+            title: 'View CV',
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CVDisplayScreen(),
+                ),
+              );
+              // Refresh CV status when returning
+              _checkCVStatus();
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildActionItem(
+            context,
+            icon: Icons.delete,
+            title: 'Delete CV',
+            onTap: () {
+              _deleteCV(context);
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEditActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: CustomButton(
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppTheme.textPrimaryColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onPressed: () {
-              _loadUserData(); // Reset form data
-              setState(() {
-                _isEditing = false;
-              });
-            },
-            backgroundColor: Colors.grey[300]!,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: CustomButton(
-            child: const Text(
-              'Save Changes',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onPressed: _saveProfile,
-          ),
-        ),
-      ],
+  Widget _buildUploadCVButton(BuildContext context) {
+    return _buildActionItem(
+      context,
+      icon: Icons.upload_file,
+      title: 'Add CV/Resume',
+      onTap: () {
+        _pickCVFromGallery(context);
+      },
     );
+  }
+
+  void _showMenuOptions(BuildContext context, AuthProvider authProvider) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EditProfileScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.description),
+              title: const Text('My Applications'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MyApplicationsScreen(),
+                  ),
+                );
+              },
+            ),
+            if (_hasCV)
+              ListTile(
+                leading: const Icon(Icons.visibility),
+                title: const Text('View CV/Resume'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CVDisplayScreen(),
+                    ),
+                  );
+                  // Refresh CV status when returning
+                  _checkCVStatus();
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Add CV/Resume'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickCVFromGallery(context);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context);
+                _signOut(context, authProvider);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signOut(BuildContext context, AuthProvider authProvider) async {
+    await authProvider.signOut();
+    if (context.mounted) {
+      context.go('/auth/login');
+    }
+  }
+
+  Future<void> _pickCVFromGallery(BuildContext context) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        // Read the file data using readAsBytes() which works on web
+        final bytes = await image.readAsBytes();
+        final base64Data = base64Encode(bytes);
+        
+        // Store the CV using CVStorageService
+        final success = await _cvStorageService.storeCV(
+          filePath: image.path,
+          fileName: image.name,
+          fileData: base64Data,
+        );
+        
+        if (success) {
+          // Show success message
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('CV/Resume uploaded successfully: ${image.name}'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          
+          // Refresh CV status
+          await _checkCVStatus();
+          
+        } else {
+          // Show error message
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to store CV/Resume'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+        
+        print('Selected CV/Resume: ${image.name}');
+        
+      } else {
+        // User cancelled the picker
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No CV/Resume selected'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Handle any errors
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading CV/Resume: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      print('Error picking CV/Resume: $e');
+    }
+  }
+
+  Future<void> _deleteCV(BuildContext context) async {
+    try {
+      await _cvStorageService.deleteCV();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CV deleted successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      // Refresh CV status
+      await _checkCVStatus();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting CV: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      print('Error deleting CV: $e');
+    }
   }
 }

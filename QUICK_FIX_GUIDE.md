@@ -1,99 +1,84 @@
-# Quick Fix Guide - User Profile Creation
+# Quick Fix Guide - Application Submission Issue
 
-## **🔧 Issue: User Profile Not Being Created**
+## Problem
+When clicking "Apply Now", you get "Failed to submit application" error with TypeError about null values.
 
-Even with RLS disabled, the user profile is not being created in the database. Here's the quick fix:
+## Root Cause
+The database `applications` table and application model had issues with:
+1. Missing new columns: `job_title`, `company_name`, `status`, `location`, `salary`
+2. `job_id` field expecting a UUID but we're using static job data
+3. Null values being passed to required string fields
 
-## **Step 1: Check if Users Table Exists**
+## Solution
 
-1. **Go to Supabase Dashboard** → **Table Editor**
-2. **Look for "users" table**
-3. **If it doesn't exist**, run this SQL in **SQL Editor**:
-
-```sql
--- Create users table if it doesn't exist
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('job_seeker', 'employer')),
-    skills TEXT[] DEFAULT '{}',
-    experience TEXT DEFAULT '',
-    maternity_status BOOLEAN DEFAULT FALSE,
-    resume_url TEXT DEFAULT '',
-    company_name TEXT DEFAULT '',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Disable RLS on users table
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-```
-
-## **Step 2: Create Helper Function (Optional)**
-
-Run this in **SQL Editor** to create a helper function:
+### Step 1: Update Your Supabase Database
+1. Go to your Supabase dashboard
+2. Navigate to the SQL Editor
+3. Run this SQL command:
 
 ```sql
--- Create function to insert user profile
-CREATE OR REPLACE FUNCTION create_user_profile(
-    user_id UUID,
-    user_email TEXT,
-    user_name TEXT,
-    user_role TEXT
-) RETURNS VOID AS $$
-BEGIN
-    INSERT INTO users (id, email, name, role, created_at)
-    VALUES (user_id, user_email, user_name, user_role, NOW())
-    ON CONFLICT (id) DO NOTHING;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Add missing columns to applications table
+ALTER TABLE applications 
+ADD COLUMN IF NOT EXISTS job_title TEXT,
+ADD COLUMN IF NOT EXISTS company_name TEXT,
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Applied',
+ADD COLUMN IF NOT EXISTS location TEXT,
+ADD COLUMN IF NOT EXISTS salary TEXT;
+
+-- Update existing applications to have default values
+UPDATE applications 
+SET 
+    job_title = COALESCE(job_title, 'Unknown Job'),
+    company_name = COALESCE(company_name, 'Unknown Company'),
+    status = COALESCE(status, 'Applied'),
+    location = COALESCE(location, 'Remote'),
+    salary = COALESCE(salary, 'Not specified')
+WHERE job_title IS NULL OR company_name IS NULL OR status IS NULL OR location IS NULL OR salary IS NULL;
+
+-- Make job_id optional since we're using static job data
+ALTER TABLE applications 
+ALTER COLUMN job_id DROP NOT NULL;
+
+-- Remove the foreign key constraint temporarily
+ALTER TABLE applications 
+DROP CONSTRAINT IF EXISTS applications_job_id_fkey;
 ```
 
-## **Step 3: Test Account Creation**
+### Step 2: Code Changes Applied
+The following changes have been made to fix the null value issues:
 
-1. **Run the app**: `flutter run -d chrome`
-2. **Try creating account** with:
-   - Name: "Test User"
-   - Email: "test@example.com" 
-   - Password: "password123"
-   - Role: "Job Seeker"
+1. **ApplicationModel**: Made `jobId` optional
+2. **ApplicationProvider**: Made `jobId` parameter optional in `submitApplication`
+3. **ApplicationService**: Made `jobId` parameter optional and added null checks
+4. **MaternityJobDetailScreen**: Added null checks for user data and job data
 
-## **Step 4: Verify in Database**
+### Step 3: Test the Fix
+1. **Restart your Flutter app** (hot restart or full restart)
+2. **Try clicking "Apply Now"** on any job
+3. **Check the console** for any error messages
+4. **Go to "My Applications"** to see if the application was created
 
-1. **Go to Table Editor** → **users table**
-2. **Click "Browse" tab**
-3. **Check if your user appears** in the list
+### Step 4: Verify Database
+1. In Supabase, go to Table Editor
+2. Check the `applications` table
+3. Verify that new applications are being created with all the required fields
 
-## **Alternative: Manual Profile Creation**
+## Debugging Information
+The app now prints detailed information to help debug:
+- User details (ID, name, email)
+- Job details (title, company, salary)
+- Any errors during submission
 
-If automatic creation still fails, you can manually create the profile:
+## Expected Result
+After running the SQL migration and applying the code changes:
+- ✅ "Apply Now" button should work
+- ✅ Applications should be created successfully
+- ✅ "My Applications" screen should show the submitted applications
+- ✅ No more "Failed to submit application" errors
+- ✅ No more TypeError about null values
 
-1. **After signing up**, note the user ID from console logs
-2. **Go to SQL Editor** and run:
-
-```sql
-INSERT INTO users (id, email, name, role, created_at)
-VALUES (
-    'YOUR_USER_ID_HERE',
-    'test@example.com',
-    'Test User',
-    'job_seeker',
-    NOW()
-);
-```
-
-## **Expected Result:**
-
-- ✅ **Account creation** works
-- ✅ **User profile** appears in database
-- ✅ **Login** works with created account
-- ✅ **No more "0 rows" errors**
-
-## **If Still Having Issues:**
-
-1. **Check browser console** for detailed error messages
-2. **Verify table structure** matches the schema
-3. **Try with a completely new email** address
-4. **Clear browser cache** and try again
-
-The account creation should work after these steps!
+## If Issues Persist
+1. Check the Flutter console for detailed error messages
+2. Verify that the SQL migration ran successfully
+3. Ensure all code changes are applied
+4. Try a full app restart (not just hot reload)

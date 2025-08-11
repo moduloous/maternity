@@ -116,21 +116,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Job Details'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              context.go('/home');
-            }
-          },
-        ),
-      ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(),
@@ -160,320 +145,169 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Job Header
-                      _buildJobHeader(),
-                      const SizedBox(height: 24),
-
-                      // Company Information
-                      _buildCompanySection(),
-                      const SizedBox(height: 24),
-
-                      // Job Details
-                      _buildJobDetails(),
-                      const SizedBox(height: 24),
-
-                      // Requirements
-                      _buildRequirements(),
-                      const SizedBox(height: 24),
-
-                      // Benefits
-                      _buildBenefits(),
-                      const SizedBox(height: 32),
-
-                      // Apply Button
-                      _buildApplyButton(),
-                    ],
-                  ),
-                ),
-    );
-  }
-
-  Widget _buildJobHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.business,
-                  color: AppTheme.primaryColor,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              : Column(
                   children: [
-                    Text(
-                      _job!.title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _job!.company,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.textSecondaryColor,
+                    // Header
+                    _buildHeader(),
+                    
+                    // Main content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Company and Job Info
+                            _buildJobInfo(),
+                            const SizedBox(height: 24),
+
+                            // Key Details
+                            _buildKeyDetails(),
+                            const SizedBox(height: 24),
+
+                            // Minimum Qualifications
+                            _buildMinimumQualifications(),
+                            const SizedBox(height: 32),
+
+                            // Apply Button
+                            _buildApplyButton(),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildChip(
-                icon: Icons.location_on,
-                label: _getLocationText(),
-                color: AppTheme.primaryColor,
-              ),
-              const SizedBox(width: 12),
-                             _buildChip(
-                 icon: Icons.work,
-                 label: _job!.typeDisplay,
-                 color: AppTheme.accentColor,
-               ),
-              if (_job!.maternityFriendly) ...[
-                const SizedBox(width: 12),
-                _buildChip(
-                  icon: Icons.favorite,
-                  label: 'Maternity Friendly',
-                  color: Colors.green,
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildCompanySection() {
+  Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
         children: [
+          // Time
           Text(
-            'About ${_job!.company}',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+            '9:41',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimaryColor,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            _getCompanyDescription(),
-            style: Theme.of(context).textTheme.bodyMedium,
+          
+          const Spacer(),
+          
+          // Back arrow
+          IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/home');
+              }
+            },
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJobDetails() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Job Description',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+          
+          // Company logo
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _getCompanyColor(_job?.company ?? ''),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _job!.description,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRequirements() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Requirements',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ..._getRequirements().map((requirement) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 20,
+            child: Center(
+              child: Text(
+                _job?.company.substring(0, 1).toUpperCase() ?? 'A',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    requirement,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBenefits() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Benefits',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ..._getBenefits().map((benefit) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.star,
-                  color: Colors.orange,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    benefit,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApplyButton() {
-    return CustomButton(
-      onPressed: _isApplying ? null : _applyForJob,
-      child: _isApplying
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            )
-          : const Text(
-              'Apply Now',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+          
+          const Spacer(),
+          
+          // Bookmark icon
+          IconButton(
+            icon: const Icon(Icons.bookmark_border),
+            onPressed: () {},
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildChip({
+  Widget _buildJobInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _job?.company ?? 'Amazon',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _job?.title ?? 'Software Development Engineer.',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _getLocationText(),
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppTheme.textSecondaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKeyDetails() {
+    return Row(
+      children: [
+        _buildDetailChip(
+          icon: Icons.attach_money,
+          label: '\$150k-\$200K',
+          color: AppTheme.textPrimaryColor,
+        ),
+        const SizedBox(width: 16),
+        _buildDetailChip(
+          icon: Icons.business,
+          label: 'On-Site',
+          color: AppTheme.textPrimaryColor,
+        ),
+        const SizedBox(width: 16),
+        _buildDetailChip(
+          icon: Icons.work,
+          label: '5+',
+          color: AppTheme.textPrimaryColor,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailChip({
     required IconData icon,
     required String label,
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -493,13 +327,117 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
+  Widget _buildMinimumQualifications() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Minimum Qualification',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildQualificationItem(
+          'Bachelor\'s degree or equivalent practical experience.',
+        ),
+        const SizedBox(height: 12),
+        _buildQualificationItem(
+          'Completed course offerings listed in DoD 8140 Training repository, or CEH, GSEC or Security+ certification.',
+        ),
+        const SizedBox(height: 12),
+        _buildQualificationItem(
+          '5 years of experience in technical project management, stakeholder management, professional services, solution engineering or technical consulting.',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQualificationItem(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.only(top: 8),
+          decoration: const BoxDecoration(
+            color: AppTheme.textPrimaryColor,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppTheme.textPrimaryColor,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildApplyButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isApplying ? null : _applyForJob,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: _isApplying
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Apply for this job',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Color _getCompanyColor(String company) {
+    switch (company.toLowerCase()) {
+      case 'uber':
+        return AppTheme.uberPurple;
+      case 'amazon':
+        return AppTheme.amazonOrange;
+      case 'microsoft':
+        return AppTheme.microsoftBlue;
+      case 'google':
+        return AppTheme.googleGreen;
+      default:
+        return AppTheme.amazonOrange; // Default to Amazon orange
+    }
+  }
+
   String _getLocationText() {
     // Simulate different locations based on company
     final locations = {
       'Google': 'Mountain View, CA',
       'Microsoft': 'Redmond, WA',
       'Apple': 'Cupertino, CA',
-      'Amazon': 'Seattle, WA',
+      'Amazon': 'California, USA',
       'Meta': 'Menlo Park, CA',
       'Netflix': 'Los Gatos, CA',
       'Salesforce': 'San Francisco, CA',
@@ -507,49 +445,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       'Intel': 'Santa Clara, CA',
       'Oracle': 'Austin, TX',
     };
-    return locations[_job!.company] ?? 'Remote / Hybrid';
-  }
-
-  String _getCompanyDescription() {
-    // Real company descriptions
-    final descriptions = {
-      'Google': 'Google is a multinational technology company that specializes in Internet-related services and products, which include online advertising technologies, search engine, cloud computing, software, and hardware.',
-      'Microsoft': 'Microsoft Corporation is an American multinational technology company which produces computer software, consumer electronics, personal computers, and related services.',
-      'Apple': 'Apple Inc. is an American multinational technology company that specializes in consumer electronics, computer software, and online services.',
-      'Amazon': 'Amazon.com, Inc. is an American multinational technology company focusing on e-commerce, cloud computing, digital streaming, and artificial intelligence.',
-      'Meta': 'Meta Platforms, Inc. is an American multinational technology conglomerate that owns Facebook, Instagram, WhatsApp, and other products and services.',
-      'Netflix': 'Netflix, Inc. is an American subscription streaming service and production company. It offers a library of films and television series.',
-      'Salesforce': 'Salesforce, Inc. is an American cloud-based software company that provides customer relationship management service and also provides a complementary suite of enterprise applications.',
-      'Adobe': 'Adobe Inc. is an American multinational computer software company. The company is known for its multimedia and creativity software products.',
-      'Intel': 'Intel Corporation is an American multinational corporation and technology company headquartered in Santa Clara, California.',
-      'Oracle': 'Oracle Corporation is an American multinational computer technology corporation headquartered in Austin, Texas.',
-    };
-    return descriptions[_job!.company] ?? 'A leading company in the technology industry, committed to innovation and excellence.';
-  }
-
-  List<String> _getRequirements() {
-    return [
-      'Bachelor\'s degree in Computer Science or related field',
-      '3+ years of experience in software development',
-      'Strong programming skills in one or more languages (Java, Python, JavaScript)',
-      'Experience with modern development frameworks and tools',
-      'Excellent problem-solving and analytical skills',
-      'Strong communication and teamwork abilities',
-      'Experience with agile development methodologies',
-      'Knowledge of cloud platforms (AWS, Azure, or GCP)',
-    ];
-  }
-
-  List<String> _getBenefits() {
-    return [
-      'Competitive salary and equity packages',
-      'Comprehensive health, dental, and vision insurance',
-      'Flexible work arrangements and remote work options',
-      'Professional development and learning opportunities',
-      'Generous paid time off and parental leave',
-      '401(k) matching and retirement benefits',
-      'On-site amenities and wellness programs',
-      'Career growth and advancement opportunities',
-    ];
+    return locations[_job?.company] ?? 'California, USA';
   }
 }

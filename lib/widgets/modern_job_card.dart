@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../models/job_model.dart';
 import '../utils/theme.dart';
 
-class JobCard extends StatelessWidget {
+class ModernJobCard extends StatelessWidget {
   final JobModel job;
   final VoidCallback? onTap;
 
-  const JobCard({
+  const ModernJobCard({
     super.key,
     required this.job,
     this.onTap,
@@ -58,13 +57,7 @@ class JobCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.shadowColor,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppTheme.dividerColor.withOpacity(0.5)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -103,12 +96,12 @@ class JobCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppTheme.backgroundColor,
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.dividerColor),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -146,9 +139,26 @@ class JobCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _getCompanyColor(job.company).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        job.type.toString().split('.').last,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getCompanyColor(job.company),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      DateFormat('MMM dd, yyyy').format(job.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      '/Year',
+                      style: const TextStyle(
+                        fontSize: 14,
                         color: AppTheme.textSecondaryColor,
                       ),
                     ),
@@ -156,7 +166,7 @@ class JobCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _getCompanyColor(job.company).withValues(alpha: 0.1),
+                        color: _getCompanyColor(job.company).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -167,33 +177,6 @@ class JobCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                if (job.maternityFriendly)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentColor.withAlpha(10),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.favorite,
-                          size: 12,
-                          color: AppTheme.accentColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Maternity Friendly',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.accentColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ),

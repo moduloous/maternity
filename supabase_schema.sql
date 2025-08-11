@@ -30,7 +30,7 @@ CREATE TABLE jobs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create applications table
+-- Create applications table (updated with new fields)
 CREATE TABLE applications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
@@ -39,6 +39,11 @@ CREATE TABLE applications (
     email TEXT NOT NULL,
     message TEXT NOT NULL,
     resume_url TEXT,
+    job_title TEXT,
+    company_name TEXT,
+    status TEXT DEFAULT 'Applied',
+    location TEXT,
+    salary TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

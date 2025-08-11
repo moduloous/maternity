@@ -145,10 +145,12 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.work_outline,
-                              size: 60,
-                              color: AppTheme.primaryColor,
+                            child: const Center(
+                              child: Icon(
+                                Icons.work,
+                                size: 60,
+                                color: AppTheme.primaryColor,
+                              ),
                             ),
                           ),
                         ),
